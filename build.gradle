@@ -16,8 +16,8 @@ pluginInfo.authors         = ['Elasticsearch']
 pluginInfo.email           = ['info@elastic.co']
 pluginInfo.homepage        = "http://www.elastic.co/guide/en/logstash/current/index.html"
 pluginInfo.pluginType      = "output"
-pluginInfo.pluginClass     = "JavaOutputYDB"
-pluginInfo.pluginName      = "ydb" // must match the @LogstashPlugin annotation in the main plugin class
+pluginInfo.pluginClass     = "OutputYDB"
+pluginInfo.pluginName      = "OutputYDB" // must match the @LogstashPlugin annotation in the main plugin class
 // ===========================================================================
 
 sourceCompatibility = 1.9
