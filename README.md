@@ -23,7 +23,7 @@ Logstash provides infrastructure to automatically generate documentation for thi
 
 ## Need Help?
 
-Need help? Try #logstash on freenode IRC or the https://discuss.elastic.co/c/logstash discussion forum.
+Need help? Try #logstash on freenode IRC or the https://discuss.elastic.co/c/logstash discussion forum. 
 
 ## 1. Running plugin in Logstash
 
