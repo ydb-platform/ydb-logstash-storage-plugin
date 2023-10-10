@@ -59,7 +59,7 @@ bundle exec rspec
 
 - Edit Logstash `Gemfile` and add the local plugin path, for example:
 ```ruby
-gem "logstash-output-ydb", :path => "/your/local/logstash-output-ydb"
+gem "logstash-output-ydb", :path => "/your/local/logstash-output-OutputYDB"
 ```
 - Install plugin
 ```sh
@@ -82,7 +82,7 @@ You can use the same **2.1** method to run your plugin in an installed Logstash 
 
 - Build your plugin gem
 ```sh
-gem build logstash-output-ydb.gemspec
+gem build logstash-output-OutputYDB.gemspec
 ```
 - Install the plugin from the Logstash home
 ```sh
