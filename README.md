@@ -26,9 +26,9 @@ Logstash provides infrastructure to automatically generate documentation for thi
 Need help? Try #logstash on freenode IRC or the https://discuss.elastic.co/c/logstash discussion forum.
 
 
-### Running Plugin in Logstash
+### Install Logstash
 
-Running, packaging and installing plugin - https://www.elastic.co/guide/en/logstash/8.10/java-output-plugin.html#_running_the_gradle_packaging_task_4
+Installing plugin - https://www.elastic.co/guide/en/logstash/8.10/java-output-plugin.html#_running_the_gradle_packaging_task_4
 
 ### YDB Output Configuration Options
 

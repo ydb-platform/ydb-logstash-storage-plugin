@@ -57,13 +57,11 @@ public class OutputYDB implements Output {
     private HashMap<String, String> columns;
     private Map<String, PrimitiveType> primitiveType;
 
-    // all plugins must provide a constructor that accepts id, Configuration, and Context
     public OutputYDB(final String id, final Configuration configuration, final Context context) {
         this(id, configuration, context, System.out);
     }
 
     OutputYDB(final String id, final Configuration config, final Context context, OutputStream targetStream) {
-        // constructors should validate configuration options
         this.id = id;
         printer = new PrintStream(targetStream);
         connectionString = config.get(CONNECTION_STRING);
@@ -112,6 +110,7 @@ public class OutputYDB implements Output {
         tableClient = TableClient
                 .newClient(transport)
                 .build();
+
         log.info("create session");
         this.database = transport.getDatabase();
         this.retryCtx = SessionRetryContext.create(tableClient).build();
@@ -227,7 +226,6 @@ public class OutputYDB implements Output {
 
     @Override
     public Collection<PluginConfigSpec<?>> configSchema() {
-        // should return a list of all configuration options for this plugin
         return new ArrayList<>(List.of(CONNECTION_STRING, SA_KEY_FILE, TABLE_NAME, COLUMNS));
     }
 
