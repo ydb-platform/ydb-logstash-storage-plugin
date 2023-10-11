@@ -21,7 +21,6 @@ import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 
-// class name must match plugin name
 @LogstashPlugin(name = "OutputYDB")
 public class OutputYDB implements Output {
 
