@@ -37,7 +37,7 @@ public class OutputYDB implements Output {
             PluginConfigSpec.stringSetting("table", "logstash", false, true);
 
     public static final PluginConfigSpec<String> COLUMNS =
-            PluginConfigSpec.stringSetting("column");
+            PluginConfigSpec.stringSetting("columns");
 
 
     private final String id;

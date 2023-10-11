@@ -26,11 +26,59 @@ Logstash provides infrastructure to automatically generate documentation for thi
 Need help? Try #logstash on freenode IRC or the https://discuss.elastic.co/c/logstash discussion forum.
 
 
-### Running Plugin in Logstash
+### Deploying plugin
 
-Running, packaging and installing plugin - https://www.elastic.co/guide/en/logstash/8.10/java-output-plugin.html#_running_the_gradle_packaging_task_4
+#### 1. Clone codebase
+The plugin API is currently part of the Logstash codebase so you must have a local copy of that available. 
+You can obtain a copy of the Logstash codebase with the following git command:  
+```sh
+git clone --branch <branch_name> --single-branch https://github.com/elastic/logstash.git <target_folder>
+```
+The branch_name should correspond to the version of Logstash containing the preferred revision of the Java plugin API.
+```sh
+The GA version of the Java plugin API is available in the 7.2 and later branches of the Logstash codebase.
+```
+Specify the `target_folder` for your local copy of the Logstash codebase. If you do not specify `target_folder`, 
+it defaults to a new folder called `logstash` under your current folder.
+
+#### 2. Generate the .jar file
+
+After you have obtained a copy of the appropriate revision of the Logstash codebase, you need to compile it to generate 
+the .jar file containing the Java plugin API. From the root directory of your Logstash codebase ($LS_HOME), you can 
+compile it with `./gradlew assemble` (or gradlew.bat assemble if you’re running on Windows). This should produce the
+`$LS_HOME/logstash-core/build/libs/logstash-core-x.y.z.jar` where `x`, `y`, and `z` refer to the version of Logstash.  
+
+After you have successfully compiled Logstash, you need to tell your Java plugin where to find the
+`logstash-core-x.y.z.jar` file. Create a new file named `gradle.properties` in the root folder of your plugin project. 
+That file should have a single line:
+```sh
+LOGSTASH_CORE_PATH=<target_folder>/logstash-core
+```
+
+where `target_folder` is the root folder of your local copy of the Logstash codebase.
+
+#### 3. Package and deploy
+
+Running the Gradle packaging task  
+https://www.elastic.co/guide/en/logstash/8.10/java-output-plugin.html#_running_the_gradle_packaging_task_4
+
+#### 4. Installing the Java plugin in Logstash  
+Installing plugin   
+https://www.elastic.co/guide/en/logstash/8.10/java-output-plugin.html#_installing_the_java_plugin_in_logstash_4
+
+#### 5. Running Logstash with the Java output plugin
+
+Running Logstash   
+https://www.elastic.co/guide/en/logstash/8.10/java-output-plugin.html#_running_logstash_with_the_java_output_plugin
 
 ### YDB Output Configuration Options
+
+ Configuration Options  | Value type | Required |
+|-----------------------|------------|----------|
+| connection_string     | String     | yes      |
+| sa_key_file           | String     | yes      |
+| table                 | String     | yes      |
+| columns               | String     | yes      |
 
 * **connection_string**   
   Database [connection path](https://ydb.tech/en/docs/concepts/connect#endpoint).   
@@ -55,3 +103,5 @@ Running, packaging and installing plugin - https://www.elastic.co/guide/en/logst
   Value type is string.  
   Example: "time, Timestamp, number, Int64, date, Datetime, otherNumber, Int16"  
   Required - yes
+
+
