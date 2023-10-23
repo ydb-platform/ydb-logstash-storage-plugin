@@ -74,11 +74,15 @@ https://www.elastic.co/guide/en/logstash/8.10/java-output-plugin.html#_running_l
 ### YDB Output Configuration Options
 
  Configuration Options  | Value type | Required |
-|-----------------------|------------|----------|
-| connection_string     | String     | yes      |
-| sa_key_file           | String     | yes      |
-| table                 | String     | yes      |
-| columns               | String     | yes      |
+|------------------------|------------|----------|
+| connection_string      | String     | yes      |
+| sa_key_file            | String     | no       |
+| token_auth             | String     | no       |
+| anonymous_auth         | Boolean    | no       |
+| table_name             | String     | yes      |
+| create_table           | Boolean    | no       |
+| name_identifier_column | String     | yes      |
+| columns                | String     | yes      |
 
 * **connection_string**   
   Database [connection path](https://ydb.tech/en/docs/concepts/connect#endpoint).   
@@ -89,11 +93,34 @@ https://www.elastic.co/guide/en/logstash/8.10/java-output-plugin.html#_running_l
   The path to the file with the [Service Account Key](https://ydb.tech/en/docs/concepts/auth).  
   Value type is string.  
   Example: "C:/Users/ydb/authorized_key.json"  
-  Required - yes
-* **table**  
+  Required - no
+* **token_auth**  
+  [Access Token](https://ydb.tech/en/docs/concepts/auth).  
+  Value type is string.  
+  Example: "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEA..."  
+  Required - no
+* **anonymous_auth**  
+  Empty token passed in a request [anonymous](https://ydb.tech/en/docs/concepts/auth).
+  If "true" is passed, anonymous access will be performed.  
+  Value type is boolean.  
+  Default: "false"  
+  Example: "true"  
+  Required - no
+* **table_name**  
   The name of the table in which the data will be saved. If there is no table in the database, it will be created.  
   Value type is string.  
   Example: "test_table"  
+  Required - yes
+* **create_table**  
+  If the table is not in the database, then pass the parameter "true", then a new table will be created.    
+  Value type is boolean.  
+  Default: "false"  
+  Example: "true"  
+  Required - no
+* **name_identifier_column**  
+  The name of the column of the table where the ID is written.  
+  Value type is string.  
+  Example: "id"  
   Required - yes
 * **columns**  
   The name of the columns and their

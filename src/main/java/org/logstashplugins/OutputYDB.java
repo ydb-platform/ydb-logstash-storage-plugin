@@ -4,6 +4,8 @@ import co.elastic.logstash.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tech.ydb.auth.AuthProvider;
+import tech.ydb.auth.NopAuthProvider;
+import tech.ydb.auth.TokenAuthProvider;
 import tech.ydb.auth.iam.CloudAuthHelper;
 import tech.ydb.core.grpc.GrpcTransport;
 import tech.ydb.table.SessionRetryContext;
@@ -31,13 +33,28 @@ public class OutputYDB implements Output {
             PluginConfigSpec.stringSetting("connection_string", "");
 
     public static final PluginConfigSpec<String> SA_KEY_FILE =
-            PluginConfigSpec.stringSetting("sa_key_file", "");
+            PluginConfigSpec.stringSetting("sa_key_file", "not", false, false);
+
+    public static final PluginConfigSpec<String> TOKEN_AUTH =
+            PluginConfigSpec.stringSetting("token_auth", "not", false, false);
+
+    public static final PluginConfigSpec<Boolean> ANONYMOUS_AUTH =
+            PluginConfigSpec.booleanSetting("anonymous_auth", false, false, false);
+
 
     public static final PluginConfigSpec<String> TABLE_NAME =
-            PluginConfigSpec.stringSetting("table", "logstash", false, true);
+            PluginConfigSpec.stringSetting("table_name", "logstash", false, true);
+
+    public static final PluginConfigSpec<Boolean> CREATE_TABLE =
+            PluginConfigSpec.booleanSetting("create_table", false, false, false);
 
     public static final PluginConfigSpec<String> COLUMNS =
             PluginConfigSpec.stringSetting("columns");
+
+    public static final PluginConfigSpec<String> NAME_IDENTIFIER_COLUMN =
+            PluginConfigSpec.stringSetting("name_identifier_column", "id", false, false);
+
+
 
 
     private final String id;
@@ -51,11 +68,15 @@ public class OutputYDB implements Output {
     private String tableName;
     private String connectionString;
     private String saKeyFile;
+    private String accessToken;
+    private Boolean anonymousAuth;
     private String columnsInConfig;
     public StructType messageType;
     private String tablePath;
+    private Boolean createTable;
     private HashMap<String, String> columns;
     private Map<String, PrimitiveType> primitiveType;
+    private String idName;
 
     // all plugins must provide a constructor that accepts id, Configuration, and Context
     public OutputYDB(final String id, final Configuration configuration, final Context context) {
@@ -70,11 +91,14 @@ public class OutputYDB implements Output {
         tableName = config.get(TABLE_NAME);
         saKeyFile = config.get(SA_KEY_FILE);
         columnsInConfig = config.get(COLUMNS);
+        createTable = config.get(CREATE_TABLE);
+        accessToken = config.get(TOKEN_AUTH);
+        anonymousAuth = config.get(ANONYMOUS_AUTH);
         createPrimitiveType();
         createColumns();
         createStructType();
         createSession();
-        createTable();
+        createTablePath();
     }
 
     private void createPrimitiveType() {
@@ -86,7 +110,7 @@ public class OutputYDB implements Output {
 
     private void createStructType() {
         Map<String, Type> members = new HashMap<>();
-        members.put("id", PrimitiveType.Text);
+        members.put(idName, PrimitiveType.Text);
         for (String column : columns.keySet()) {
             members.put(column, primitiveType.get(columns.get(column)));
         }
@@ -105,7 +129,7 @@ public class OutputYDB implements Output {
 
 
     private void createSession() {
-        AuthProvider authProvider = CloudAuthHelper.getServiceAccountFileAuthProvider(saKeyFile);
+        AuthProvider authProvider = createAuthProvider();
         transport = GrpcTransport.forConnectionString(connectionString)
                 .withAuthProvider(authProvider)
                 .build();
@@ -117,11 +141,28 @@ public class OutputYDB implements Output {
         this.retryCtx = SessionRetryContext.create(tableClient).build();
     }
 
+    private AuthProvider createAuthProvider() {
+        if (anonymousAuth) {
+            return NopAuthProvider.INSTANCE;
+        } else if (!accessToken.equals("not")) {
+            return new TokenAuthProvider(accessToken);
+        } else {
+            return CloudAuthHelper.getServiceAccountFileAuthProvider(saKeyFile);
+        }
+    }
 
-    private void createTable() {
+    private void createTablePath() {
+        if (createTable) {
+            makeTable();
+        } else {
+            tablePath = database + "/" + tableName;
+        }
+    }
+
+    private void makeTable() {
         TableDescription.Builder logstashTableBuilder = TableDescription.newBuilder();
-        logstashTableBuilder.addNonnullColumn("id", PrimitiveType.Text);
-        logstashTableBuilder.setPrimaryKey("id");
+        logstashTableBuilder.addNonnullColumn(idName, PrimitiveType.Text);
+        logstashTableBuilder.setPrimaryKey(idName);
         for (String column : columns.keySet()) {
             logstashTableBuilder.addNullableColumn(column, primitiveType.get(columns.get(column)));
         }
@@ -143,7 +184,7 @@ public class OutputYDB implements Output {
             UUID uuid = UUID.randomUUID();
             Map<String, Value<?>> eventValue = new HashMap<>();
             String id = uuid.toString();
-            eventValue.put("id", PrimitiveValue.newText(id));
+            eventValue.put(idName, PrimitiveValue.newText(id));
             log.info("create event with id {}", id);
             for (String columnName : columns.keySet()) {
                 Object data = event.getField(columnName);
@@ -227,8 +268,8 @@ public class OutputYDB implements Output {
 
     @Override
     public Collection<PluginConfigSpec<?>> configSchema() {
-        // should return a list of all configuration options for this plugin
-        return new ArrayList<>(List.of(CONNECTION_STRING, SA_KEY_FILE, TABLE_NAME, COLUMNS));
+        return new ArrayList<>(List.of(CONNECTION_STRING, SA_KEY_FILE, TABLE_NAME, COLUMNS, CREATE_TABLE,
+                NAME_IDENTIFIER_COLUMN, TOKEN_AUTH, ANONYMOUS_AUTH));
     }
 
     @Override
