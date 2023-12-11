@@ -52,8 +52,6 @@ public class YDBStoragePlugin implements Output {
             PluginConfigSpec.stringSetting("name_identifier_column", "id", false, false);
 
 
-
-
     private final String id;
     private PrintStream printer;
     private final CountDownLatch done = new CountDownLatch(1);
@@ -180,9 +178,9 @@ public class YDBStoragePlugin implements Output {
             Event event = z.next();
             UUID uuid = UUID.randomUUID();
             Map<String, Value<?>> eventValue = new HashMap<>();
-            String id = uuid.toString();
-            eventValue.put(idName, PrimitiveValue.newText(id));
-            log.info("create event with id {}", id);
+            String eventID = uuid.toString();
+            eventValue.put(idName, PrimitiveValue.newText(eventID));
+            log.debug("create event with id {}", eventID);
             for (String columnName : columns.keySet()) {
                 Object data = event.getField(columnName);
                 eventValue.put(columnName, createColumnValue(columnName, data));
@@ -207,18 +205,23 @@ public class YDBStoragePlugin implements Output {
             else if (columns.get(nameData).equals("Int32"))
                 return PrimitiveValue.newInt32((Integer) data);
         } else if (data instanceof Long) {
-            if (columns.get(nameData).equals("Uint32"))
-                return PrimitiveValue.newUint32((Long) data);
-            else if (columns.get(nameData).equals("Int64"))
-                return PrimitiveValue.newInt64((Long) data);
-            else if (columns.get(nameData).equals("Uint64"))
-                return PrimitiveValue.newUint64((Long) data);
-            else if (columns.get(nameData).equals("Date"))
-                return PrimitiveValue.newDate((Long) data);
-            else if (columns.get(nameData).equals("Datetime"))
-                return PrimitiveValue.newDatetime((Long) data);
-            else if (columns.get(nameData).equals("Timestamp"))
-                return PrimitiveValue.newTimestamp((Long) data);
+            Long value = (Long)data;
+            switch (columns.get(nameData)) {
+                case "Uint32":
+                    return PrimitiveValue.newUint32(value);
+                case "Int64":
+                    return PrimitiveValue.newInt64(value);
+                case "Uint64":
+                    return PrimitiveValue.newUint64(value);
+                case "Date":
+                    return PrimitiveValue.newDate(value);
+                case "Datetime":
+                    return PrimitiveValue.newDatetime(value);
+                case "Timestamp":
+                    return PrimitiveValue.newTimestamp(value);
+                default:
+                    break;
+            }
         } else if (data instanceof Float) {
             return PrimitiveValue.newFloat((Float) data);
         } else if (data instanceof Double) {
@@ -230,12 +233,17 @@ public class YDBStoragePlugin implements Output {
         } else if (data instanceof LocalDate) {
             return PrimitiveValue.newDate((LocalDate) data);
         } else if (data instanceof Instant) {
-            if (columns.get(nameData).equals("Date"))
-                return PrimitiveValue.newDate((Instant) data);
-            else if (columns.get(nameData).equals("Datetime"))
-                return PrimitiveValue.newDatetime((Instant) data);
-            else if (columns.get(nameData).equals("Timestamp"))
-                return PrimitiveValue.newTimestamp((Instant) data);
+            Instant instant = (Instant)data;
+            switch (columns.get(nameData)) {
+                case "Date":
+                    return PrimitiveValue.newDate(instant);
+                case "Datetime":
+                    return PrimitiveValue.newDatetime(instant);
+                case "Timestamp":
+                    return PrimitiveValue.newTimestamp(instant);
+                default:
+                    break;
+            }
         }
         return PrimitiveValue.newText(data.toString());
     }
