@@ -1,8 +1,18 @@
-package org.logstashplugins;
+package tech.ydb.logstashplugins.storage;
+
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 
 import co.elastic.logstash.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import tech.ydb.auth.AuthProvider;
 import tech.ydb.auth.NopAuthProvider;
 import tech.ydb.auth.TokenAuthProvider;
@@ -14,20 +24,11 @@ import tech.ydb.table.description.TableDescription;
 import tech.ydb.table.settings.BulkUpsertSettings;
 import tech.ydb.table.values.*;
 
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.stream.Collectors;
-
 // class name must match plugin name
-@LogstashPlugin(name = "OutputYDB")
-public class OutputYDB implements Output {
+@LogstashPlugin(name = "YDBStoragePlugin")
+public class YDBStoragePlugin implements Output {
 
-    private static final Logger log = LoggerFactory.getLogger(OutputYDB.class);
+    private static final Logger log = LoggerFactory.getLogger(YDBStoragePlugin.class);
 
     public static final PluginConfigSpec<String> CONNECTION_STRING =
             PluginConfigSpec.stringSetting("connection_string", "");
@@ -37,10 +38,6 @@ public class OutputYDB implements Output {
 
     public static final PluginConfigSpec<String> TOKEN_AUTH =
             PluginConfigSpec.stringSetting("token_auth", "not", false, false);
-
-    public static final PluginConfigSpec<Boolean> ANONYMOUS_AUTH =
-            PluginConfigSpec.booleanSetting("anonymous_auth", false, false, false);
-
 
     public static final PluginConfigSpec<String> TABLE_NAME =
             PluginConfigSpec.stringSetting("table_name", "logstash", false, true);
@@ -69,7 +66,6 @@ public class OutputYDB implements Output {
     private String connectionString;
     private String saKeyFile;
     private String accessToken;
-    private Boolean anonymousAuth;
     private String columnsInConfig;
     public StructType messageType;
     private String tablePath;
@@ -79,13 +75,14 @@ public class OutputYDB implements Output {
     private String idName;
 
     // all plugins must provide a constructor that accepts id, Configuration, and Context
-    public OutputYDB(final String id, final Configuration configuration, final Context context) {
+    public YDBStoragePlugin(final String id, final Configuration configuration, final Context context) {
         this(id, configuration, context, System.out);
     }
 
-    OutputYDB(final String id, final Configuration config, final Context context, OutputStream targetStream) {
+    YDBStoragePlugin(final String id, final Configuration config, final Context context, OutputStream targetStream) {
         // constructors should validate configuration options
         this.id = id;
+        idName = config.get(NAME_IDENTIFIER_COLUMN);
         printer = new PrintStream(targetStream);
         connectionString = config.get(CONNECTION_STRING);
         tableName = config.get(TABLE_NAME);
@@ -93,7 +90,6 @@ public class OutputYDB implements Output {
         columnsInConfig = config.get(COLUMNS);
         createTable = config.get(CREATE_TABLE);
         accessToken = config.get(TOKEN_AUTH);
-        anonymousAuth = config.get(ANONYMOUS_AUTH);
         createPrimitiveType();
         createColumns();
         createStructType();
@@ -142,13 +138,14 @@ public class OutputYDB implements Output {
     }
 
     private AuthProvider createAuthProvider() {
-        if (anonymousAuth) {
-            return NopAuthProvider.INSTANCE;
-        } else if (!accessToken.equals("not")) {
-            return new TokenAuthProvider(accessToken);
-        } else {
+        if (!saKeyFile.equals("not")) {
             return CloudAuthHelper.getServiceAccountFileAuthProvider(saKeyFile);
         }
+        if (!accessToken.equals("not")) {
+            return new TokenAuthProvider(accessToken);
+        }
+
+        return NopAuthProvider.INSTANCE;
     }
 
     private void createTablePath() {
@@ -269,7 +266,7 @@ public class OutputYDB implements Output {
     @Override
     public Collection<PluginConfigSpec<?>> configSchema() {
         return new ArrayList<>(List.of(CONNECTION_STRING, SA_KEY_FILE, TABLE_NAME, COLUMNS, CREATE_TABLE,
-                NAME_IDENTIFIER_COLUMN, TOKEN_AUTH, ANONYMOUS_AUTH));
+                NAME_IDENTIFIER_COLUMN, TOKEN_AUTH));
     }
 
     @Override

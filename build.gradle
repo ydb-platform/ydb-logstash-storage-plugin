@@ -7,17 +7,17 @@ apply from: LOGSTASH_CORE_PATH + "/../rubyUtils.gradle"
 // ===========================================================================
 // plugin info
 // ===========================================================================
-group                      'org.logstashplugins' // must match the package of the main plugin class
+group                      'tech.ydb.logstashplugins.storage'
 version                    "${file("VERSION").text.trim()}" // read from required VERSION file
-description                = "Example Java output implementation"
+description                = "Logstash YDB Storage plugin"
 pluginInfo.licenses        = ['Apache-2.0'] // list of SPDX license IDs
 pluginInfo.longDescription = "This gem is a Logstash plugin required to be installed on top of the Logstash core pipeline using \$LS_HOME/bin/logstash-plugin install gemname. This gem is not a stand-alone program"
-pluginInfo.authors         = ['Elasticsearch']
+pluginInfo.authors         = ['Sergey Provolovich', 'Alexandr Gorshenin']
 pluginInfo.email           = ['info@elastic.co']
 pluginInfo.homepage        = "http://www.elastic.co/guide/en/logstash/current/index.html"
 pluginInfo.pluginType      = "output"
-pluginInfo.pluginClass     = "OutputYDB"
-pluginInfo.pluginName      = "OutputYDB" // must match the @LogstashPlugin annotation in the main plugin class
+pluginInfo.pluginClass     = "YDBStoragePlugin"
+pluginInfo.pluginName      = "YDBStoragePlugin" // must match the @LogstashPlugin annotation in the main plugin class
 // ===========================================================================
 
 sourceCompatibility = 1.9
@@ -50,11 +50,11 @@ dependencies {
 
     implementation 'tech.ydb:ydb-sdk-core:2.1.8'
     implementation 'tech.ydb:ydb-sdk-table:2.1.8'
-    implementation 'tech.ydb:ydb-sdk-topic:2.1.8'
     implementation 'tech.ydb.auth:yc-auth-provider:2.1.0'
 
     implementation 'org.apache.logging.log4j:log4j-core:2.20.0'
 
+    testImplementation 'tech.ydb.test:ydb-junit4-support:2.1.8'
     testImplementation 'junit:junit:4.12'
     testImplementation 'org.jruby:jruby-complete:9.1.13.0'
     testImplementation 'org.apache.logging.log4j:log4j-core:2.20.0'
