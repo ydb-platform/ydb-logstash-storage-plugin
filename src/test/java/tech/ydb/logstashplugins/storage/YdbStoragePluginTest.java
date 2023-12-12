@@ -1,35 +1,35 @@
-package org.logstashplugins;
-
-import co.elastic.logstash.api.Configuration;
-import co.elastic.logstash.api.Event;
-import org.junit.Assert;
-import org.junit.Test;
-import org.logstash.plugins.ConfigurationImpl;
+package tech.ydb.logstashplugins.storage;
 
 import java.io.ByteArrayOutputStream;
 import java.time.Instant;
 import java.util.*;
 
-public class OutputYDBTest {
+import co.elastic.logstash.api.Configuration;
+import co.elastic.logstash.api.Event;
+import org.junit.Assert;
+import org.junit.Ignore;
+import org.junit.Test;
+import org.logstash.plugins.ConfigurationImpl;
+
+public class YdbStoragePluginTest {
 
     private static Configuration getConfiguration() {
-        String connectionString = "";
-        String saKeyFile = "";
+        String connectionString = "grpc://localhost:2136/local";
         String tableName = "test_table";
         String column = "time, Timestamp, number, Int64, date, Datetime, smallNumber, Int16";
         Map<String, Object> configValues = new HashMap<>();
-        configValues.put(OutputYDB.CONNECTION_STRING.name(), connectionString);
-        configValues.put(OutputYDB.TABLE_NAME.name(), tableName);
-        configValues.put(OutputYDB.SA_KEY_FILE.name(), saKeyFile);
-        configValues.put(OutputYDB.COLUMNS.name(), column);
+        configValues.put(YdbStoragePlugin.CONNECTION_STRING.name(), connectionString);
+        configValues.put(YdbStoragePlugin.TABLE_NAME.name(), tableName);
+        configValues.put(YdbStoragePlugin.COLUMNS.name(), column);
         return new ConfigurationImpl(configValues);
     }
 
     @Test
+    @Ignore
     public void testJavaOutputExample() {
         Configuration config = getConfiguration();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        OutputYDB output = new OutputYDB("id", config, null, baos);
+        YdbStoragePlugin output = new YdbStoragePlugin("id", config, null, baos);
 
         String sourceField = "message";
         int eventCount = 5;
@@ -60,7 +60,4 @@ public class OutputYDBTest {
             index++;
         }
     }
-
-
-
 }

@@ -1,8 +1,18 @@
-package org.logstashplugins;
+package tech.ydb.logstashplugins.storage;
+
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 
 import co.elastic.logstash.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import tech.ydb.auth.AuthProvider;
 import tech.ydb.auth.NopAuthProvider;
 import tech.ydb.auth.TokenAuthProvider;
@@ -14,20 +24,11 @@ import tech.ydb.table.description.TableDescription;
 import tech.ydb.table.settings.BulkUpsertSettings;
 import tech.ydb.table.values.*;
 
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.stream.Collectors;
-
 // class name must match plugin name
-@LogstashPlugin(name = "OutputYDB")
-public class OutputYDB implements Output {
+@LogstashPlugin(name = "ydb_storage_plugin")
+public class YdbStoragePlugin implements Output {
 
-    private static final Logger log = LoggerFactory.getLogger(OutputYDB.class);
+    private static final Logger log = LoggerFactory.getLogger(YdbStoragePlugin.class);
 
     public static final PluginConfigSpec<String> CONNECTION_STRING =
             PluginConfigSpec.stringSetting("connection_string", "");
@@ -37,10 +38,6 @@ public class OutputYDB implements Output {
 
     public static final PluginConfigSpec<String> TOKEN_AUTH =
             PluginConfigSpec.stringSetting("token_auth", "not", false, false);
-
-    public static final PluginConfigSpec<Boolean> ANONYMOUS_AUTH =
-            PluginConfigSpec.booleanSetting("anonymous_auth", false, false, false);
-
 
     public static final PluginConfigSpec<String> TABLE_NAME =
             PluginConfigSpec.stringSetting("table_name", "logstash", false, true);
@@ -55,8 +52,6 @@ public class OutputYDB implements Output {
             PluginConfigSpec.stringSetting("name_identifier_column", "id", false, false);
 
 
-
-
     private final String id;
     private PrintStream printer;
     private final CountDownLatch done = new CountDownLatch(1);
@@ -69,7 +64,6 @@ public class OutputYDB implements Output {
     private String connectionString;
     private String saKeyFile;
     private String accessToken;
-    private Boolean anonymousAuth;
     private String columnsInConfig;
     public StructType messageType;
     private String tablePath;
@@ -79,13 +73,16 @@ public class OutputYDB implements Output {
     private String idName;
 
     // all plugins must provide a constructor that accepts id, Configuration, and Context
-    public OutputYDB(final String id, final Configuration configuration, final Context context) {
+    public YdbStoragePlugin(final String id, final Configuration configuration, final Context context) {
         this(id, configuration, context, System.out);
     }
 
-    OutputYDB(final String id, final Configuration config, final Context context, OutputStream targetStream) {
+    YdbStoragePlugin(final String id, final Configuration config, final Context context, OutputStream targetStream) {
+        log.info("init YDBStoragePlugin");
+
         // constructors should validate configuration options
         this.id = id;
+        idName = config.get(NAME_IDENTIFIER_COLUMN);
         printer = new PrintStream(targetStream);
         connectionString = config.get(CONNECTION_STRING);
         tableName = config.get(TABLE_NAME);
@@ -93,12 +90,17 @@ public class OutputYDB implements Output {
         columnsInConfig = config.get(COLUMNS);
         createTable = config.get(CREATE_TABLE);
         accessToken = config.get(TOKEN_AUTH);
-        anonymousAuth = config.get(ANONYMOUS_AUTH);
-        createPrimitiveType();
-        createColumns();
-        createStructType();
-        createSession();
-        createTablePath();
+
+        try {
+            createPrimitiveType();
+            createColumns();
+            createStructType();
+            createSession();
+            createTablePath();
+        } catch (RuntimeException e) {
+            log.error("Can't initialize YDBStoragePlugin", e);
+            stopped = true;
+        }
     }
 
     private void createPrimitiveType() {
@@ -127,7 +129,6 @@ public class OutputYDB implements Output {
         }
     }
 
-
     private void createSession() {
         AuthProvider authProvider = createAuthProvider();
         transport = GrpcTransport.forConnectionString(connectionString)
@@ -142,13 +143,14 @@ public class OutputYDB implements Output {
     }
 
     private AuthProvider createAuthProvider() {
-        if (anonymousAuth) {
-            return NopAuthProvider.INSTANCE;
-        } else if (!accessToken.equals("not")) {
-            return new TokenAuthProvider(accessToken);
-        } else {
+        if (!saKeyFile.equals("not")) {
             return CloudAuthHelper.getServiceAccountFileAuthProvider(saKeyFile);
         }
+        if (!accessToken.equals("not")) {
+            return new TokenAuthProvider(accessToken);
+        }
+
+        return NopAuthProvider.INSTANCE;
     }
 
     private void createTablePath() {
@@ -183,9 +185,9 @@ public class OutputYDB implements Output {
             Event event = z.next();
             UUID uuid = UUID.randomUUID();
             Map<String, Value<?>> eventValue = new HashMap<>();
-            String id = uuid.toString();
-            eventValue.put(idName, PrimitiveValue.newText(id));
-            log.info("create event with id {}", id);
+            String eventID = uuid.toString();
+            eventValue.put(idName, PrimitiveValue.newText(eventID));
+            log.debug("create event with id {} -> {}", eventID, event.getData());
             for (String columnName : columns.keySet()) {
                 Object data = event.getField(columnName);
                 eventValue.put(columnName, createColumnValue(columnName, data));
@@ -197,7 +199,7 @@ public class OutputYDB implements Output {
     }
 
     private PrimitiveValue createColumnValue(String nameData, Object data) {
-        log.info("create PrimitiveValue with name {}", nameData);
+        log.debug("create PrimitiveValue with name {} and {}", nameData, data.getClass().getName());
         if (data instanceof Boolean) {
             return PrimitiveValue.newBool((Boolean) data);
         } else if (data instanceof Byte) {
@@ -210,18 +212,25 @@ public class OutputYDB implements Output {
             else if (columns.get(nameData).equals("Int32"))
                 return PrimitiveValue.newInt32((Integer) data);
         } else if (data instanceof Long) {
-            if (columns.get(nameData).equals("Uint32"))
-                return PrimitiveValue.newUint32((Long) data);
-            else if (columns.get(nameData).equals("Int64"))
-                return PrimitiveValue.newInt64((Long) data);
-            else if (columns.get(nameData).equals("Uint64"))
-                return PrimitiveValue.newUint64((Long) data);
-            else if (columns.get(nameData).equals("Date"))
-                return PrimitiveValue.newDate((Long) data);
-            else if (columns.get(nameData).equals("Datetime"))
-                return PrimitiveValue.newDatetime((Long) data);
-            else if (columns.get(nameData).equals("Timestamp"))
-                return PrimitiveValue.newTimestamp((Long) data);
+            Long value = (Long)data;
+            switch (columns.get(nameData)) {
+                case "Uint32":
+                    return PrimitiveValue.newUint32(value);
+                case "Int64":
+                    return PrimitiveValue.newInt64(value);
+                case "Uint64":
+                    return PrimitiveValue.newUint64(value);
+                case "Int32":
+                    return PrimitiveValue.newInt32(value.intValue());
+                case "Date":
+                    return PrimitiveValue.newDate(value);
+                case "Datetime":
+                    return PrimitiveValue.newDatetime(value);
+                case "Timestamp":
+                    return PrimitiveValue.newTimestamp(value);
+                default:
+                    break;
+            }
         } else if (data instanceof Float) {
             return PrimitiveValue.newFloat((Float) data);
         } else if (data instanceof Double) {
@@ -233,12 +242,17 @@ public class OutputYDB implements Output {
         } else if (data instanceof LocalDate) {
             return PrimitiveValue.newDate((LocalDate) data);
         } else if (data instanceof Instant) {
-            if (columns.get(nameData).equals("Date"))
-                return PrimitiveValue.newDate((Instant) data);
-            else if (columns.get(nameData).equals("Datetime"))
-                return PrimitiveValue.newDatetime((Instant) data);
-            else if (columns.get(nameData).equals("Timestamp"))
-                return PrimitiveValue.newTimestamp((Instant) data);
+            Instant instant = (Instant)data;
+            switch (columns.get(nameData)) {
+                case "Date":
+                    return PrimitiveValue.newDate(instant);
+                case "Datetime":
+                    return PrimitiveValue.newDatetime(instant);
+                case "Timestamp":
+                    return PrimitiveValue.newTimestamp(instant);
+                default:
+                    break;
+            }
         }
         return PrimitiveValue.newText(data.toString());
     }
@@ -269,7 +283,7 @@ public class OutputYDB implements Output {
     @Override
     public Collection<PluginConfigSpec<?>> configSchema() {
         return new ArrayList<>(List.of(CONNECTION_STRING, SA_KEY_FILE, TABLE_NAME, COLUMNS, CREATE_TABLE,
-                NAME_IDENTIFIER_COLUMN, TOKEN_AUTH, ANONYMOUS_AUTH));
+                NAME_IDENTIFIER_COLUMN, TOKEN_AUTH));
     }
 
     @Override
