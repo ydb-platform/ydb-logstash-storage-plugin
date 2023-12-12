@@ -11,16 +11,16 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.logstash.plugins.ConfigurationImpl;
 
-public class YDBStoragePluginTest {
+public class YdbStoragePluginTest {
 
     private static Configuration getConfiguration() {
         String connectionString = "grpc://localhost:2136/local";
         String tableName = "test_table";
         String column = "time, Timestamp, number, Int64, date, Datetime, smallNumber, Int16";
         Map<String, Object> configValues = new HashMap<>();
-        configValues.put(YDBStoragePlugin.CONNECTION_STRING.name(), connectionString);
-        configValues.put(YDBStoragePlugin.TABLE_NAME.name(), tableName);
-        configValues.put(YDBStoragePlugin.COLUMNS.name(), column);
+        configValues.put(YdbStoragePlugin.CONNECTION_STRING.name(), connectionString);
+        configValues.put(YdbStoragePlugin.TABLE_NAME.name(), tableName);
+        configValues.put(YdbStoragePlugin.COLUMNS.name(), column);
         return new ConfigurationImpl(configValues);
     }
 
@@ -29,7 +29,7 @@ public class YDBStoragePluginTest {
     public void testJavaOutputExample() {
         Configuration config = getConfiguration();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        YDBStoragePlugin output = new YDBStoragePlugin("id", config, null, baos);
+        YdbStoragePlugin output = new YdbStoragePlugin("id", config, null, baos);
 
         String sourceField = "message";
         int eventCount = 5;

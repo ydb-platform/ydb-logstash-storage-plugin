@@ -16,8 +16,8 @@ pluginInfo.authors         = ['Sergey Provolovich', 'Alexandr Gorshenin']
 pluginInfo.email           = ['alexandr268@ydb.tech']
 pluginInfo.homepage        = "http://www.elastic.co/guide/en/logstash/current/index.html"
 pluginInfo.pluginType      = "output"
-pluginInfo.pluginClass     = "YDBStoragePlugin"
-pluginInfo.pluginName      = "YDBStoragePlugin"
+pluginInfo.pluginClass     = "YdbStoragePlugin"
+pluginInfo.pluginName      = "ydb_storage_plugin"
 // ===========================================================================
 
 sourceCompatibility = 1.9

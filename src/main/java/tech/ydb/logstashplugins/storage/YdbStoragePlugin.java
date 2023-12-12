@@ -25,10 +25,10 @@ import tech.ydb.table.settings.BulkUpsertSettings;
 import tech.ydb.table.values.*;
 
 // class name must match plugin name
-@LogstashPlugin(name = "YDBStoragePlugin")
-public class YDBStoragePlugin implements Output {
+@LogstashPlugin(name = "ydb_storage_plugin")
+public class YdbStoragePlugin implements Output {
 
-    private static final Logger log = LoggerFactory.getLogger(YDBStoragePlugin.class);
+    private static final Logger log = LoggerFactory.getLogger(YdbStoragePlugin.class);
 
     public static final PluginConfigSpec<String> CONNECTION_STRING =
             PluginConfigSpec.stringSetting("connection_string", "");
@@ -73,11 +73,13 @@ public class YDBStoragePlugin implements Output {
     private String idName;
 
     // all plugins must provide a constructor that accepts id, Configuration, and Context
-    public YDBStoragePlugin(final String id, final Configuration configuration, final Context context) {
+    public YdbStoragePlugin(final String id, final Configuration configuration, final Context context) {
         this(id, configuration, context, System.out);
     }
 
-    YDBStoragePlugin(final String id, final Configuration config, final Context context, OutputStream targetStream) {
+    YdbStoragePlugin(final String id, final Configuration config, final Context context, OutputStream targetStream) {
+        log.info("init YDBStoragePlugin");
+
         // constructors should validate configuration options
         this.id = id;
         idName = config.get(NAME_IDENTIFIER_COLUMN);
@@ -88,11 +90,17 @@ public class YDBStoragePlugin implements Output {
         columnsInConfig = config.get(COLUMNS);
         createTable = config.get(CREATE_TABLE);
         accessToken = config.get(TOKEN_AUTH);
-        createPrimitiveType();
-        createColumns();
-        createStructType();
-        createSession();
-        createTablePath();
+
+        try {
+            createPrimitiveType();
+            createColumns();
+            createStructType();
+            createSession();
+            createTablePath();
+        } catch (RuntimeException e) {
+            log.error("Can't initialize YDBStoragePlugin", e);
+            stopped = true;
+        }
     }
 
     private void createPrimitiveType() {
@@ -120,7 +128,6 @@ public class YDBStoragePlugin implements Output {
             }
         }
     }
-
 
     private void createSession() {
         AuthProvider authProvider = createAuthProvider();
@@ -180,7 +187,7 @@ public class YDBStoragePlugin implements Output {
             Map<String, Value<?>> eventValue = new HashMap<>();
             String eventID = uuid.toString();
             eventValue.put(idName, PrimitiveValue.newText(eventID));
-            log.debug("create event with id {}", eventID);
+            log.debug("create event with id {} -> {}", eventID, event.getData());
             for (String columnName : columns.keySet()) {
                 Object data = event.getField(columnName);
                 eventValue.put(columnName, createColumnValue(columnName, data));
@@ -192,7 +199,7 @@ public class YDBStoragePlugin implements Output {
     }
 
     private PrimitiveValue createColumnValue(String nameData, Object data) {
-        log.info("create PrimitiveValue with name {}", nameData);
+        log.debug("create PrimitiveValue with name {} and {}", nameData, data.getClass().getName());
         if (data instanceof Boolean) {
             return PrimitiveValue.newBool((Boolean) data);
         } else if (data instanceof Byte) {
@@ -213,6 +220,8 @@ public class YDBStoragePlugin implements Output {
                     return PrimitiveValue.newInt64(value);
                 case "Uint64":
                     return PrimitiveValue.newUint64(value);
+                case "Int32":
+                    return PrimitiveValue.newInt32(value.intValue());
                 case "Date":
                     return PrimitiveValue.newDate(value);
                 case "Datetime":
